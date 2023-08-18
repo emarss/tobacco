@@ -26,7 +26,9 @@ SECRET_KEY = 'django-insecure-29wk!11$i!1$%5qunhcp5&p=kz8#j&8mi_)w$*)c_5%82+0#+j
 DEBUG = True
 
 ALLOWED_HOSTS = [
-    'emarss04.pythonanywhere.com',
+    'localhost',
+    '13.53.209.108'
+    'cdn1.tresgroupe.com'
 ]
 
 

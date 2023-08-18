@@ -4,71 +4,43 @@ from rest_framework import status
 from PIL import Image
 import os
 import uuid
-import cv2
-import sys
 import os
-from sklearn.svm import SVC
-from sklearn.decomposition import PCA
-from skimage.feature import hog
 import numpy as np
-from joblib import load
-
+import face_recognition
 
 
 class ImageProcessing(APIView):
     def post(self, request):
-        # Get the uploaded image from the request
-        image_file = request.FILES.get('image')
-        # return Response('image_file');
+        image_file_1 = request.FILES.get('image_1')
+        image_file_2 = request.FILES.get('image_2')
+        img_1 = Image.open(image_file_1)
+        img_2 = Image.open(image_file_2)
+        filename_1 = str(uuid.uuid4()) + os.path.splitext(image_file_1.name)[1]
+        filename_2 = str(uuid.uuid4()) + os.path.splitext(image_file_2.name)[1]
+        processed_img_1_path = os.path.join('/tmp/', filename_1)
+        processed_img_2_path = os.path.join('/tmp/', filename_2)
+        img_1.save(processed_img_1_path)
+        img_2.save(processed_img_2_path)
 
-        # Open the image using PIL
-        img = Image.open(image_file)
+        image1 = face_recognition.load_image_file(processed_img_1_path)
+        image2 = face_recognition.load_image_file(processed_img_2_path)
 
-        # Process the image (e.g. resize, crop, filter, etc.)
+        face_landmarks1 = face_recognition.face_landmarks(image1)
+        face_landmarks2 = face_recognition.face_landmarks(image2)
 
-        # Generate a unique filename for the processed image
-        filename = str(uuid.uuid4()) + os.path.splitext(image_file.name)[1]
+        if len(face_landmarks1) == 0:
+            print("First image does not contain a face.")
+            exit()
 
+        if len(face_landmarks2) == 0:
+            print("Second image does not contain a face.")
+            exit()
 
-        # Save the processed image to a path
-        processed_img_path = os.path.join('/home/carter/Projects/test/kuda_api/', filename)
-        img.save(processed_img_path)
+        face_encoding1 = face_recognition.face_encodings(image1)[0]
+        face_encoding2 = face_recognition.face_encodings(image2)[0]
 
-        # Create a JSON response with the processed image path
-        response_data = {
-            'result': processed_img_path
-        }
-
-        target_size = (128, 128)
-
-        # new_image_path = sys.argv[1]
-        new_image = preprocess_image(processed_img_path, target_size)
-        new_features = extract_features([new_image])
-
-        # Load the saved model from a file
-        model_file = "./tobacco_leaf_classifier.joblib"
-
-        clf = load(model_file)
-
-        # Use the trained model to predict the grade of the new image
-        new_grade = clf.predict(new_features)
-        print(new_grade)
-
-
-        # Return the JSON response
-        return Response(response_data, status=status.HTTP_200_OK)
-
-
-def preprocess_image(image_path, target_size):
-    image = cv2.imread(image_path)
-    image = cv2.resize(image, target_size)
-    image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    return image
-
-
-def extract_features(X):
-    features = []
-    for image in X:
-        hog_features = hog(image, orientations=8, pixels_per_cell=(16, 16), cells_per_block=(1, 1), block_norm="L2-Hys")
-        features.append(hog_features)
-    return features
+        results = face_recognition.compare_faces([face_encoding1], face_encoding2)
+        if results[0]:
+            return Response({'result': "MATCH"}, status=status.HTTP_200_OK)
+        else:
+            return Response({'result': "NOT_MATCH"}, status=status.HTTP_200_OK)
